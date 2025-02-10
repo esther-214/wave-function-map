@@ -53,16 +53,28 @@ class TinyTown extends Phaser.Scene {
     ];
     const { tileFrequency, neighborRules } = this.parse_rules(rule_matrix);
     const matrix = this.possible_tiles();
-    console.log(matrix[0]);
-    while (true) {
+    console.log(neighborRules);
+    let WFC = true,
+      contradiction = false;
+    while (WFC || contradiction) {
       const cell = this.getLowestEntropy(matrix);
       if (!cell) break;
       this.collapse(cell, matrix);
-      this.propagate(matrix, neighborRules, tileFrequency);
+      this.propagate(cell, matrix, neighborRules);
+      contradiction = this.checkContradiction();
+      WFC = this.checkIfCollapsed();
     }
 
     this.renderMatrix(matrix);
     this.addDecorations();
+  }
+  checkContradiction(matrix) {}
+  checkIfCollapsed(matrix) {
+    for (const row in matrix) {
+      if (length(matrix[row]) != 1) {
+        return False;
+      }
+    }
   }
   parse_rules(matrix) {
     const tileFrequency = {};
@@ -193,101 +205,45 @@ class TinyTown extends Phaser.Scene {
     let selectedTile = tiles[Math.floor(Math.random() * tiles.length)];
     matrix[x][y] = [selectedTile];
   }
-  propagate(matrix, neighborRules, tileFrequency) {
-    const HEIGHT = matrix.length;
-    const WIDTH = matrix[0].length;
-
-    const DIRECTIONS = [
-      { name: "UP", offset: [0, -1] },
-      { name: "RIGHT", offset: [1, 0] },
-      { name: "DOWN", offset: [0, 1] },
-      { name: "LEFT", offset: [-1, 0] },
+  propagate(cell, matrix, neighborRules) {
+    let queue = [[cell["row"], cell["col"]]];
+    let visited = new Set();
+    // Directions for neighbors: top, right, bottom, left
+    const directions = [
+      { dx: 0, dy: -1, direction: "top" }, // top
+      { dx: 1, dy: 0, direction: "right" }, // right
+      { dx: 0, dy: 1, direction: "bottom" }, // bottom
+      { dx: -1, dy: 0, direction: "left" }, // left
     ];
 
-    const getNeighborPos = (x, y, direction) => {
-      const nx = x + direction[0];
-      const ny = y + direction[1];
-      return nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT ? [nx, ny] : null;
-    };
+    while (queue.length > 0) {
+      let currentCell = queue.pop();
+      let x = currentCell[0],
+        y = currentCell[1];
 
-    const removeTile = (x, y, tile) => {
-      const idx = matrix[y][x].indexOf(tile);
-      if (idx !== -1) matrix[y][x].splice(idx, 1);
-    };
+      if (visited.has(`${x},${y}`)) continue;
+      visited.add(`${x},${y}`);
 
-    let stack = [];
-    let passes = 0;
-
-    // Start propagation
-    while (stack.length > 0 && passes < 1000) {
-      const [x, y] = stack.pop();
-      const mainTiles = matrix[y][x];
-      console.log(mainTiles);
-      if (mainTiles.length === 0) {
-        console.error(`Error: Cell at (${x}, ${y}) has no valid tiles!`);
-        return;
+      let curr = matrix[x][y];
+      if (curr.length != 1) {
+        continue;
       }
+      for (let { dx, dy, direction } of directions) {
+        let nx = x + dx,
+          ny = y + dy;
 
-      // Check neighbors in all directions
-      for (let dir of DIRECTIONS) {
-        const neighborPos = getNeighborPos(x, y, dir.offset);
-        if (!neighborPos) continue;
+        // Ensure the neighbor is within bounds
+        if (nx >= 0 && ny >= 0 && nx < matrix.length && ny < matrix[0].length) {
+          // If neighbor cell hasn't been set (its state is not final), and it doesn't match the expected state
+          if (matrix[nx][ny].length != 1 && matrix[nx][ny] != neighborRules[curr][direction]) {
+            // Update the neighbor's state
+            matrix[nx][ny] = neighborRules[curr][direction];
 
-        const [nx, ny] = neighborPos;
-        const neighborTiles = matrix[ny][nx];
-
-        if (neighborTiles.length === 0) {
-          console.error(`Error: Neighbor at (${nx}, ${ny}) has no valid tiles!`);
-          return;
-        }
-
-        let modified = false;
-
-        // Filter out incompatible tiles in the neighbor
-        for (let i = neighborTiles.length - 1; i >= 0; i--) {
-          const neighborTile = neighborTiles[i];
-          let isCompatible = false;
-
-          for (const mainTile of mainTiles) {
-            const ruleKey = `${mainTile}_${neighborTile}_${dir.name}`;
-            if (neighborRules[ruleKey]) {
-              isCompatible = true;
-              break;
-            }
-          }
-
-          // Remove the tile if it is not compatible
-          if (!isCompatible) {
-            removeTile(nx, ny, neighborTile);
-            modified = true;
+            // Push the neighbor to the queue for further processing
+            queue.push([nx, ny]);
           }
         }
-
-        // Recalculate tile weights for better visual appeal if tiles were modified
-        if (modified) {
-          const weightedTiles = matrix[ny][nx].map((tile) => ({
-            tile,
-            weight: tileFrequency[tile] || 1,
-          }));
-
-          const totalWeight = weightedTiles.reduce((sum, t) => sum + t.weight, 0);
-          const normalizedWeights = weightedTiles.map((t) => ({
-            tile: t.tile,
-            weight: t.weight / totalWeight,
-          }));
-
-          // Sort neighbor tiles based on weights for balanced map generation
-          matrix[ny][nx].sort((a, b) => (tileFrequency[b] || 1) - (tileFrequency[a] || 1));
-
-          stack.push([nx, ny]); // Add the modified neighbor to the stack
-        }
       }
-
-      passes++;
-    }
-
-    if (passes >= 1000) {
-      console.warn("Propagation stopped due to reaching the maximum number of passes.");
     }
   }
 
