@@ -1,0 +1,14 @@
+{ "columns":34,
+ "image":"Tilesheet\/mapPack_tilesheet.png",
+ "imageheight":768,
+ "imagewidth":1088,
+ "margin":0,
+ "name":"tiny-town",
+ "spacing":0,
+ "tilecount":816,
+ "tiledversion":"1.11.1",
+ "tileheight":32,
+ "tilewidth":32,
+ "type":"tileset",
+ "version":"1.10"
+}
