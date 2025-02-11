@@ -8,7 +8,6 @@ const TILE_SIZE = 64;
 const MAP_WIDTH = 20;
 const MAP_HEIGHT = 15;
 
-
 class TinyTown extends Phaser.Scene {
   constructor() {
     super("TinyTown");
@@ -32,15 +31,11 @@ class TinyTown extends Phaser.Scene {
 
     this.useContextSensitive = false; // Default to base-level WFC
     
-    this.useContextSensitive = false; // Default to base-level WFC
-    
     this.generateMap();
 
     this.reload = this.input.keyboard.addKey("R"); //Restart
-    this.toggleAlgorithm = this.input.keyboard.addKey("C"); // Toggle context-sensitive //Restart
     this.toggleAlgorithm = this.input.keyboard.addKey("C"); // Toggle context-sensitive
   }
-
 
   update() {
     if (Phaser.Input.Keyboard.JustDown(this.reload)) {
@@ -56,20 +51,9 @@ class TinyTown extends Phaser.Scene {
 
   generateMap(){
     if(!this.layer || !this.decorationLayer){
-
-    if (Phaser.Input.Keyboard.JustDown(this.toggleAlgorithm)) {
-      this.useContextSensitive = !this.useContextSensitive;
-      console.log(`Switched to ${this.useContextSensitive ? "Context-Sensitive" : "Base-Level"} WFC`);
-      this.scene.restart();
-    }
-  }
-
-  generateMap(){
-    if(!this.layer || !this.decorationLayer){
       console.error("Layer is not defined");
       return;
     }
-  
   
     let rule_matrix = [
       ["G", "G", "G", "G", "G", "G"],
@@ -81,7 +65,6 @@ class TinyTown extends Phaser.Scene {
       ["I", "I", "S", "G", "G", "G"],
     ];
   
-  
     const { tileFrequency, neighborRules } = this.parse_rules(rule_matrix);
     const matrix = this.possible_tiles();
   
@@ -91,7 +74,6 @@ class TinyTown extends Phaser.Scene {
     while(!fullyCollapsed && !contradiction){
       const cell = this.getLowestEntropy(matrix);
       if (!cell) break;
-  
   
       this.collapse(cell, matrix, neighborRules);
       this.propagate(cell, matrix, neighborRules);
@@ -131,9 +113,7 @@ class TinyTown extends Phaser.Scene {
       }
     }
     return true; // Fully collapsed
-    return true; // Fully collapsed
   }
-
 
   parse_rules(matrix) {
     const tileFrequency = {};
@@ -211,14 +191,12 @@ class TinyTown extends Phaser.Scene {
     return { tileFrequency, neighborRules };
   }
 
-
   possible_tiles() {
     const matrix = Array.from({ length: MAP_HEIGHT }, () =>
       Array.from({ length: MAP_WIDTH }, () => ["G", "I", "S"])
     );
     return matrix;
   }
-
 
   initializeMatrix() {
     return Array.from({ length: MAP_HEIGHT }, () =>
@@ -316,11 +294,9 @@ class TinyTown extends Phaser.Scene {
   }
   
   
-  
   propagate(cell, matrix, neighborRules) {
     let queue = [[cell["row"], cell["col"]]];
     let visited = new Set();
-
 
     const directions = [
       { dx: 0, dy: -1, direction: "top" }, // top
@@ -328,36 +304,20 @@ class TinyTown extends Phaser.Scene {
       { dx: 0, dy: 1, direction: "bottom" }, // bottom
       { dx: -1, dy: 0, direction: "left" }, // left
     ];
-    
+  
     while (queue.length > 0) {
-      let [x, y] = queue.pop();
       let [x, y] = queue.pop();
       if (visited.has(`${x},${y}`)) continue;
       visited.add(`${x},${y}`);
-    
-      let curr = matrix[x][y];
-      if (curr.length !== 1) continue; // Skip if not collapsed
   
+      let curr = matrix[x][y];
       if (curr.length !== 1) continue; // Skip if not collapsed
   
       for (let { dx, dy, direction } of directions) {
         let nx = x + dx,
             ny = y + dy;
   
-            ny = y + dy;
-  
         if (nx >= 0 && ny >= 0 && nx < matrix.length && ny < matrix[0].length) {
-          let neighbor = matrix[nx][ny];
-
-          if (neighbor.length !== 1) {
-            // Intersect neighbor's options with allowed neighbors from rules
-            let allowedNeighbors = neighborRules[curr[0]][direction];
-            let newOptions = neighbor.filter((option) => allowedNeighbors.includes(option));
-  
-            if (newOptions.length !== neighbor.length) {
-              matrix[nx][ny] = newOptions;
-              queue.push([nx, ny]);
-            }
           let neighbor = matrix[nx][ny];
 
           if (neighbor.length !== 1) {
