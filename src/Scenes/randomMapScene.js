@@ -32,16 +32,19 @@ class TinyTown extends Phaser.Scene {
 
     this.reload = this.input.keyboard.addKey("R");
   }
+
   update() {
     if (Phaser.Input.Keyboard.JustDown(this.reload)) {
       this.scene.restart();
     }
   }
-  generateMap() {
-    if (!this.layer || !this.decorationLayer) {
+
+  generateMap(){
+    if(!this.layer || !this.decorationLayer){
       console.error("Layer is not defined");
       return;
     }
+  
     let rule_matrix = [
       ["G", "G", "G", "G", "G", "G"],
       ["G", "S", "S", "S", "S", "G"],
@@ -51,31 +54,57 @@ class TinyTown extends Phaser.Scene {
       ["S", "S", "S", "G", "G", "G"],
       ["I", "I", "S", "G", "G", "G"],
     ];
+  
     const { tileFrequency, neighborRules } = this.parse_rules(rule_matrix);
     const matrix = this.possible_tiles();
-    console.log(neighborRules);
-    let WFC = true,
-      contradiction = false;
-    while (WFC || contradiction) {
+  
+    let contradiction = false;
+    let fullyCollapsed = false;
+  
+    while(!fullyCollapsed && !contradiction){
       const cell = this.getLowestEntropy(matrix);
       if (!cell) break;
+  
       this.collapse(cell, matrix);
       this.propagate(cell, matrix, neighborRules);
-      contradiction = this.checkContradiction();
-      WFC = this.checkIfCollapsed();
+  
+      contradiction = this.checkContradiction(matrix);
+      fullyCollapsed = this.checkIfCollapsed(matrix);
+    }
+  
+    if (contradiction){
+      console.error("Contradiction found! Restarting...");
+      this.scene.restart();
     }
 
-    this.renderMatrix(matrix);
-    this.addDecorations();
+    else{
+      this.renderMatrix(matrix);
+      this.addDecorations();
+    }
   }
-  checkContradiction(matrix) {}
-  checkIfCollapsed(matrix) {
-    for (const row in matrix) {
-      if (length(matrix[row]) != 1) {
-        return False;
+
+  checkContradiction(matrix) {
+  for (let row of matrix) {
+    for (let cell of row) {
+      if (cell.length === 0) { // No options left
+        return true; // Contradiction found
       }
     }
   }
+  return false; // No contradiction
+  }
+
+  checkIfCollapsed(matrix) {
+    for (let row of matrix) {
+      for (let cell of row) {
+        if (cell.length !== 1) {
+          return false; // Not fully collapsed
+        }
+      }
+    }
+    return true; // Fully collapsed
+  }
+
   parse_rules(matrix) {
     const tileFrequency = {};
     const neighborRules = {};
@@ -151,11 +180,14 @@ class TinyTown extends Phaser.Scene {
     }
     return { tileFrequency, neighborRules };
   }
-  possible_tiles() {
-    const matrix = Array.from({ length: MAP_HEIGHT }, () => Array.from({ length: MAP_WIDTH }, () => ["G", "I", "S"]));
 
+  possible_tiles() {
+    const matrix = Array.from({ length: MAP_HEIGHT }, () =>
+      Array.from({ length: MAP_WIDTH }, () => ["G", "I", "S"])
+    );
     return matrix;
   }
+
   initializeMatrix() {
     return Array.from({ length: MAP_HEIGHT }, () =>
       Array.from({ length: MAP_WIDTH }, () => ({
@@ -205,42 +237,42 @@ class TinyTown extends Phaser.Scene {
     let selectedTile = tiles[Math.floor(Math.random() * tiles.length)];
     matrix[x][y] = [selectedTile];
   }
+  
   propagate(cell, matrix, neighborRules) {
     let queue = [[cell["row"], cell["col"]]];
     let visited = new Set();
-    // Directions for neighbors: top, right, bottom, left
+
     const directions = [
       { dx: 0, dy: -1, direction: "top" }, // top
       { dx: 1, dy: 0, direction: "right" }, // right
       { dx: 0, dy: 1, direction: "bottom" }, // bottom
       { dx: -1, dy: 0, direction: "left" }, // left
     ];
-
+  
     while (queue.length > 0) {
-      let currentCell = queue.pop();
-      let x = currentCell[0],
-        y = currentCell[1];
-
+      let [x, y] = queue.pop();
       if (visited.has(`${x},${y}`)) continue;
       visited.add(`${x},${y}`);
-
+  
       let curr = matrix[x][y];
-      if (curr.length != 1) {
-        continue;
-      }
+      if (curr.length !== 1) continue; // Skip if not collapsed
+  
       for (let { dx, dy, direction } of directions) {
         let nx = x + dx,
-          ny = y + dy;
-
-        // Ensure the neighbor is within bounds
+            ny = y + dy;
+  
         if (nx >= 0 && ny >= 0 && nx < matrix.length && ny < matrix[0].length) {
-          // If neighbor cell hasn't been set (its state is not final), and it doesn't match the expected state
-          if (matrix[nx][ny].length != 1 && matrix[nx][ny] != neighborRules[curr][direction]) {
-            // Update the neighbor's state
-            matrix[nx][ny] = neighborRules[curr][direction];
-
-            // Push the neighbor to the queue for further processing
-            queue.push([nx, ny]);
+          let neighbor = matrix[nx][ny];
+          
+          if (neighbor.length !== 1) {
+            // Intersect neighbor's options with allowed neighbors from rules
+            let allowedNeighbors = neighborRules[curr[0]][direction];
+            let newOptions = neighbor.filter((option) => allowedNeighbors.includes(option));
+  
+            if (newOptions.length !== neighbor.length) {
+              matrix[nx][ny] = newOptions;
+              queue.push([nx, ny]);
+            }
           }
         }
       }
