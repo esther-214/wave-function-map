@@ -75,7 +75,7 @@ class TinyTown extends Phaser.Scene {
       const cell = this.getLowestEntropy(matrix);
       if (!cell) break;
   
-      this.collapse(cell, matrix);
+      this.collapse(cell, matrix, neighborRules);
       this.propagate(cell, matrix, neighborRules);
   
       contradiction = this.checkContradiction(matrix);
@@ -243,10 +243,56 @@ class TinyTown extends Phaser.Scene {
       return;
     }
 
-    // Collapse the cell by randomly selecting one tile
-    let selectedTile = tiles[Math.floor(Math.random() * tiles.length)];
-    matrix[x][y] = [selectedTile];
+    if (this.useContextSensitive) {
+      // Context-sensitive: choose the tile with the highest compatibility score
+      let bestTile = null;
+      let bestScore = -Infinity;
+  
+      for (let tile of tiles) {
+        let score = this.calculateCompatibilityScore(x, y, tile, matrix, neighborRules);
+        if (score > bestScore) {
+          bestScore = score;
+          bestTile = tile;
+        }
+      }
+  
+      matrix[x][y] = [bestTile];
+    }
+    
+    else {
+      // Base-level WFC: randomly select a tile
+      let selectedTile = tiles[Math.floor(Math.random() * tiles.length)];
+      matrix[x][y] = [selectedTile];
+    }
   }
+
+  calculateCompatibilityScore(x, y, tile, matrix, neighborRules) {
+    let score = 0;
+    const directions = [
+      { dx: 0, dy: -1, direction: "top" }, // top
+      { dx: 1, dy: 0, direction: "right" }, // right
+      { dx: 0, dy: 1, direction: "bottom" }, // bottom
+      { dx: -1, dy: 0, direction: "left" }, // left
+    ];
+  
+    for (let { dx, dy, direction } of directions) {
+      let nx = x + dx,
+        ny = y + dy;
+  
+      if (nx >= 0 && ny >= 0 && nx < matrix.length && ny < matrix[0].length) {
+        let neighbor = matrix[nx][ny];
+        if (neighbor.length === 1) {
+          // If the neighbor is collapsed, check if the current tile is compatible
+          if (neighborRules[tile][direction].includes(neighbor[0])) {
+            score += 1; // Increase score for compatibility
+          }
+        }
+      }
+    }
+  
+    return score;
+  }
+  
   
   propagate(cell, matrix, neighborRules) {
     let queue = [[cell["row"], cell["col"]]];
