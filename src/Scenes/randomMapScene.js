@@ -7,6 +7,7 @@ const TILE_INDEXES = {
 const TILE_SIZE = 64;
 const MAP_WIDTH = 20;
 const MAP_HEIGHT = 15;
+
 class TinyTown extends Phaser.Scene {
   constructor() {
     super("TinyTown");
@@ -28,13 +29,22 @@ class TinyTown extends Phaser.Scene {
     this.layer = this.map.createBlankLayer("Layer1", tileset);
     this.decorationLayer = this.map.createBlankLayer("DecorationLayer", tileset);
 
+    this.useContextSensitive = false; // Default to base-level WFC
+    
     this.generateMap();
 
-    this.reload = this.input.keyboard.addKey("R");
+    this.reload = this.input.keyboard.addKey("R"); //Restart
+    this.toggleAlgorithm = this.input.keyboard.addKey("C"); // Toggle context-sensitive
   }
 
   update() {
     if (Phaser.Input.Keyboard.JustDown(this.reload)) {
+      this.scene.restart();
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.toggleAlgorithm)) {
+      this.useContextSensitive = !this.useContextSensitive;
+      console.log(`Switched to ${this.useContextSensitive ? "Context-Sensitive" : "Base-Level"} WFC`);
       this.scene.restart();
     }
   }
@@ -180,7 +190,7 @@ class TinyTown extends Phaser.Scene {
     }
     return { tileFrequency, neighborRules };
   }
-  
+
   possible_tiles() {
     const matrix = Array.from({ length: MAP_HEIGHT }, () =>
       Array.from({ length: MAP_WIDTH }, () => ["G", "I", "S"])
@@ -263,7 +273,7 @@ class TinyTown extends Phaser.Scene {
   
         if (nx >= 0 && ny >= 0 && nx < matrix.length && ny < matrix[0].length) {
           let neighbor = matrix[nx][ny];
-          
+
           if (neighbor.length !== 1) {
             // Intersect neighbor's options with allowed neighbors from rules
             let allowedNeighbors = neighborRules[curr[0]][direction];
