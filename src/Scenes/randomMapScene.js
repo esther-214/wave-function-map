@@ -35,6 +35,9 @@ class TinyTown extends Phaser.Scene {
 
     this.reload = this.input.keyboard.addKey("R"); //Restart
     this.toggleAlgorithm = this.input.keyboard.addKey("C"); // Toggle context-sensitive
+    
+    noise.seed(Math.random()); // Seed the noise generator
+
   }
 
   update() {
@@ -234,35 +237,52 @@ class TinyTown extends Phaser.Scene {
     return candidates[randomIndex];
   }
 
-  collapse(cell, matrix) {
-    const { row: x, col: y } = cell;
-    let tiles = matrix[x][y];
-
-    // If the cell is already collapsed, do nothing
+  collapse(cell, matrix, neighborRules) {
+    const { row, col } = cell;
+    let tiles = matrix[row][col];
+  
+    // If already collapsed, do nothing.
     if (tiles.length === 1) {
       return;
     }
-
+  
     if (this.useContextSensitive) {
-      // Context-sensitive: choose the tile with the highest compatibility score
+      // Existing context-sensitive branch.
       let bestTile = null;
       let bestScore = -Infinity;
-  
       for (let tile of tiles) {
-        let score = this.calculateCompatibilityScore(x, y, tile, matrix, neighborRules);
+        let score = this.calculateCompatibilityScore(row, col, tile, matrix, neighborRules);
         if (score > bestScore) {
           bestScore = score;
           bestTile = tile;
         }
       }
-  
-      matrix[x][y] = [bestTile];
-    }
-    
-    else {
-      // Base-level WFC: randomly select a tile
-      let selectedTile = tiles[Math.floor(Math.random() * tiles.length)];
-      matrix[x][y] = [selectedTile];
+      matrix[row][col] = [bestTile];
+    } else {
+      // --- Perlin noise branch ---
+      // Choose a scale to control the noise "frequency" (adjust as needed)
+      const scale = 10; 
+      
+      // Use the cell's coordinates (you may swap row/col if you want a different orientation)
+      const noiseValue = noise.perlin2(col / scale, row / scale);
+      // Normalize the noise from [-1, 1] to [0, 1]
+      const normalized = (noiseValue + 1) / 2;
+      
+      // Map the normalized noise value to one of the available tile options.
+      // For example, if tiles = ["G", "I", "S"]:
+      const index = Math.floor(normalized * tiles.length);
+      matrix[row][col] = [tiles[index]];
+      
+      // Alternatively, you could use thresholds:
+      /*
+      if (normalized < 0.3) {
+        matrix[row][col] = ["I"];
+      } else if (normalized < 0.6) {
+        matrix[row][col] = ["S"];
+      } else {
+        matrix[row][col] = ["G"];
+      }
+      */
     }
   }
 
